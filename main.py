@@ -133,7 +133,7 @@ def merge_tiles(cells):
         multiplier = 2
     elif len(cells) in [3, 4]:
         multiplier = 4
-    elif len(cells) == 5:
+    elif len(cells) >= 5:
         multiplier = 8
     else:
         multiplier = 1
