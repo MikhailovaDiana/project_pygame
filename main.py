@@ -42,6 +42,7 @@ COLORS = {
 # Шрифт
 font = pygame.font.SysFont("RotondacBold", 60)
 score_font = pygame.font.SysFont("RotondacBold", 40)
+menu_font = pygame.font.SysFont("RotondacBold", 50)
 
 # Создание окна
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -56,6 +57,17 @@ falling_cells = []
 
 # Счет
 score = 0
+
+# Состояния игры
+START_MENU = 0
+GAME_ACTIVE = 1
+game_state = START_MENU
+
+# Уровни сложности
+EASY = "Easy"
+MEDIUM = "Medium"
+HARD = "Hard"
+current_difficulty = MEDIUM
 
 def render_value(value):
     """Форматирует изображение значения."""
@@ -229,10 +241,66 @@ def draw_score():
     score_text_rect = score_text.get_rect(center=(WIDTH // 2, 30))
     screen.blit(score_text, score_text_rect)
 
-# Начальное состояние: заполняем все клетки случайными значениями
-for i in range(5):
-    for j in range(5):
-        grid[i][j] = random.choice([2, 4, 8, 16, 32, 64])
+def draw_start_menu():
+    """Отрисовывает стартовое меню с выбором уровня сложности."""
+    screen.fill(WHITE)
+    title_text = menu_font.render("Выберите уровень сложности", True, BLACK)
+    title_rect = title_text.get_rect(center=(WIDTH // 2, 100))
+    screen.blit(title_text, title_rect)
+
+    # Цвета для уровней сложности
+    easy_color = (144, 238, 144)  # Светло-зеленый
+    medium_color = (255, 223, 186)  # Светло-оранжевый
+    hard_color = (255, 182, 193)  # Светло-розовый
+
+    # Рисуем прямоугольники для уровней сложности
+    easy_rect = pygame.Rect(WIDTH // 2 - 100, 220, 200, 80)
+    medium_rect = pygame.Rect(WIDTH // 2 - 100, 320, 200, 80)
+    hard_rect = pygame.Rect(WIDTH // 2 - 100, 420, 200, 80)
+
+    pygame.draw.rect(screen, easy_color, easy_rect, border_radius=20)
+    pygame.draw.rect(screen, medium_color, medium_rect, border_radius=20)
+    pygame.draw.rect(screen, hard_color, hard_rect, border_radius=20)
+
+    # Отрисовываем текст поверх прямоугольников
+    easy_text = menu_font.render("Easy", True, BLACK)
+    easy_text_rect = easy_text.get_rect(center=easy_rect.center)
+    screen.blit(easy_text, easy_text_rect)
+
+    medium_text = menu_font.render("Medium", True, BLACK)
+    medium_text_rect = medium_text.get_rect(center=medium_rect.center)
+    screen.blit(medium_text, medium_text_rect)
+
+    hard_text = menu_font.render("Hard", True, BLACK)
+    hard_text_rect = hard_text.get_rect(center=hard_rect.center)
+    screen.blit(hard_text, hard_text_rect)
+
+def handle_menu_click(pos):
+    """Обрабатывает клик в стартовом меню для выбора уровня сложности."""
+    global game_state, current_difficulty
+    # Проверяем, куда кликнул пользователь
+    if 220 <= pos[1] <= 300:  # Easy
+        current_difficulty = EASY
+        game_state = GAME_ACTIVE
+    elif 320 <= pos[1] <= 400:  # Medium
+        current_difficulty = MEDIUM
+        game_state = GAME_ACTIVE
+    elif 420 <= pos[1] <= 500:  # Hard
+        current_difficulty = HARD
+        game_state = GAME_ACTIVE
+
+def initialize_grid():
+    """Инициализирует игровое поле в зависимости от выбранного уровня сложности."""
+    global grid
+    grid = [[0 for _ in range(5)] for _ in range(5)]
+    for i in range(5):
+        for j in range(5):
+            if current_difficulty == EASY:
+                grid[i][j] = random.choice([2, 4, 8])
+            elif current_difficulty == MEDIUM:
+                grid[i][j] = random.choice([2, 4, 8, 16, 32, 64])
+            elif current_difficulty == HARD:
+                grid[i][j] = random.choice([8, 16, 32, 64, 128, 256])
 
 def check_and_fill_grid():
     """Проверяет, есть ли на поле пустые клетки, и заполняет их случайными значениями."""
@@ -246,60 +314,71 @@ def check_and_fill_grid():
         for i, j in empty_cells:
             grid[i][j] = random.choice([2, 4, 8, 16, 32, 64])
 
+
 # Основной цикл игры
 running = True
 dragging = False
 selected_cells = []
 
 while running:
-    screen.fill(WHITE)
-    draw_grid()  # Отрисовываем сетку
-    draw_falling_cells()  # Отрисовываем падающие клетки
-    if dragging:
-        draw_line(selected_cells)  # Отрисовываем линию, если происходит перетаскивание
-    update_falling_cells()  # Обновляем анимацию падения
-    draw_score()  # Отрисовываем счет
+    if game_state == START_MENU:
+        draw_start_menu()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    handle_menu_click(event.pos)
+                    initialize_grid()
+    elif game_state == GAME_ACTIVE:
+        screen.fill(WHITE)
+        draw_grid()  # Отрисовываем сетку
+        draw_falling_cells()  # Отрисовываем падающие клетки
+        if dragging:
+            draw_line(selected_cells)  # Отрисовываем линию, если происходит перетаскивание
+        update_falling_cells()  # Обновляем анимацию падения
+        draw_score()  # Отрисовываем счет
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                dragging = True
-                i = (event.pos[1] - TOP_PADDING) // (CELL_SIZE + PADDING)
-                j = event.pos[0] // (CELL_SIZE + PADDING)
-                if 0 <= i < 5 and 0 <= j < 5:
-                    selected_cells.append((i, j))
-            elif event.button == 3:
-                if len(selected_cells) > 0:
-                    selected_cells.pop()
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1 and dragging:
-                handle_drag(selected_cells)
-                dragging = False
-                selected_cells = []
-                check_and_fill_grid()  # Проверяем и заполняем пустые клетки после хода
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    dragging = True
+                    i = (event.pos[1] - TOP_PADDING) // (CELL_SIZE + PADDING)
+                    j = event.pos[0] // (CELL_SIZE + PADDING)
+                    if 0 <= i < 5 and 0 <= j < 5:
+                        selected_cells.append((i, j))
+                elif event.button == 3:
+                    if len(selected_cells) > 0:
+                        selected_cells.pop()
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1 and dragging:
+                    handle_drag(selected_cells)
+                    dragging = False
+                    selected_cells = []
+                    check_and_fill_grid()  # Проверяем и заполняем пустые клетки после хода
 
-        elif event.type == pygame.MOUSEMOTION:
-            if dragging:
-                mouse_x, mouse_y = event.pos
-                for i in range(5):
-                    for j in range(5):
-                        cell_center_x = j * (CELL_SIZE + PADDING) + PADDING + CELL_SIZE // 2
-                        cell_center_y = i * (CELL_SIZE + PADDING) + PADDING + CELL_SIZE // 2 + TOP_PADDING
-                        if abs(mouse_x - cell_center_x) <= 30 and abs(mouse_y - cell_center_y) <= 30:
-                            # Проверяем, что значение клетки совпадает с первой выбранной клеткой
-                            if len(selected_cells) > 0:
-                                first_cell_value = grid[selected_cells[0][0]][selected_cells[0][1]]
-                                current_cell_value = grid[i][j]
-                                if current_cell_value != first_cell_value:
-                                    continue  # Пропускаем клетку с другим значением
+            elif event.type == pygame.MOUSEMOTION:
+                if dragging:
+                    mouse_x, mouse_y = event.pos
+                    for i in range(5):
+                        for j in range(5):
+                            cell_center_x = j * (CELL_SIZE + PADDING) + PADDING + CELL_SIZE // 2
+                            cell_center_y = i * (CELL_SIZE + PADDING) + PADDING + CELL_SIZE // 2 + TOP_PADDING
+                            if abs(mouse_x - cell_center_x) <= 30 and abs(mouse_y - cell_center_y) <= 30:
+                                # Проверяем, что значение клетки совпадает с первой выбранной клеткой
+                                if len(selected_cells) > 0:
+                                    first_cell_value = grid[selected_cells[0][0]][selected_cells[0][1]]
+                                    current_cell_value = grid[i][j]
+                                    if current_cell_value != first_cell_value:
+                                        continue  # Пропускаем клетку с другим значением
 
-                            if len(selected_cells) > 1 and (i, j) == selected_cells[-2]:
-                                selected_cells.pop()
-                            elif (i, j) not in selected_cells:
-                                selected_cells.append((i, j))
-                            break
+                                if len(selected_cells) > 1 and (i, j) == selected_cells[-2]:
+                                    selected_cells.pop()
+                                elif (i, j) not in selected_cells:
+                                    selected_cells.append((i, j))
+                                break
 
     pygame.display.flip()
     clock.tick(FPS)
